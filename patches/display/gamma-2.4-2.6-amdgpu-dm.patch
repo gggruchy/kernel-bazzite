@@ -1,0 +1,69 @@
+From: Harry Wentland <harry.wentland@amd.com>
+Subject: [PATCH 2/2] drm/amd/display: Add support for 2.4 and 2.6 Gamma and
+ its Inverse
+
+Wire up the newly defined Gamma 2.4 and Gamma 2.6 curve types in the
+amdgpu DM color pipeline. Map them to the corresponding DC transfer
+functions and advertise them in the supported degamma, shaper, and
+blend transfer function masks.
+
+Signed-off-by: Harry Wentland <harry.wentland@amd.com>
+Assisted-by: Copilot:claude-opus-4.8
+---
+ .../gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_color.c  |  6 ++++++
+ .../drm/amd/display/amdgpu_dm/amdgpu_dm_colorop.c    | 12 +++++++++---
+ 2 files changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_color.c b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_color.c
+index fa6883ae4dfb..2ace173b06e3 100644
+--- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_color.c
++++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_color.c
+@@ -896,6 +896,12 @@ amdgpu_colorop_tf_to_dc_tf(enum drm_colorop_curve_1d_type tf)
+ 	case DRM_COLOROP_1D_CURVE_GAMMA22:
+ 	case DRM_COLOROP_1D_CURVE_GAMMA22_INV:
+ 		return TRANSFER_FUNCTION_GAMMA22;
++	case DRM_COLOROP_1D_CURVE_GAMMA24:
++	case DRM_COLOROP_1D_CURVE_GAMMA24_INV:
++		return TRANSFER_FUNCTION_GAMMA24;
++	case DRM_COLOROP_1D_CURVE_GAMMA26:
++	case DRM_COLOROP_1D_CURVE_GAMMA26_INV:
++		return TRANSFER_FUNCTION_GAMMA26;
+ 	default:
+ 		return TRANSFER_FUNCTION_LINEAR;
+ 	}
+diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_colorop.c b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_colorop.c
+index 7ee051cb3c05..081a92959d90 100644
+--- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_colorop.c
++++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_colorop.c
+@@ -37,19 +37,25 @@ const u64 amdgpu_dm_supported_degam_tfs =
+ 	BIT(DRM_COLOROP_1D_CURVE_SRGB_EOTF) |
+ 	BIT(DRM_COLOROP_1D_CURVE_PQ_125_EOTF) |
+ 	BIT(DRM_COLOROP_1D_CURVE_BT2020_INV_OETF) |
+-	BIT(DRM_COLOROP_1D_CURVE_GAMMA22);
++	BIT(DRM_COLOROP_1D_CURVE_GAMMA22) |
++	BIT(DRM_COLOROP_1D_CURVE_GAMMA24) |
++	BIT(DRM_COLOROP_1D_CURVE_GAMMA26);
+ 
+ const u64 amdgpu_dm_supported_shaper_tfs =
+ 	BIT(DRM_COLOROP_1D_CURVE_SRGB_INV_EOTF) |
+ 	BIT(DRM_COLOROP_1D_CURVE_PQ_125_INV_EOTF) |
+ 	BIT(DRM_COLOROP_1D_CURVE_BT2020_OETF) |
+-	BIT(DRM_COLOROP_1D_CURVE_GAMMA22_INV);
++	BIT(DRM_COLOROP_1D_CURVE_GAMMA22_INV) |
++	BIT(DRM_COLOROP_1D_CURVE_GAMMA24_INV) |
++	BIT(DRM_COLOROP_1D_CURVE_GAMMA26_INV);
+ 
+ const u64 amdgpu_dm_supported_blnd_tfs =
+ 	BIT(DRM_COLOROP_1D_CURVE_SRGB_EOTF) |
+ 	BIT(DRM_COLOROP_1D_CURVE_PQ_125_EOTF) |
+ 	BIT(DRM_COLOROP_1D_CURVE_BT2020_INV_OETF) |
+-	BIT(DRM_COLOROP_1D_CURVE_GAMMA22);
++	BIT(DRM_COLOROP_1D_CURVE_GAMMA22) |
++	BIT(DRM_COLOROP_1D_CURVE_GAMMA24) |
++	BIT(DRM_COLOROP_1D_CURVE_GAMMA26);
+ 
+ #define MAX_COLOR_PIPELINE_OPS 10
+ 
+-- 
+2.54.0
+

@@ -1149,6 +1149,7 @@ Patch4: patch-4-amdgpu-vrr-whitelist.patch
 Patch5: patch-5-cachy.patch
 Patch6: patch-6-bbr3.patch
 Patch7: patch-7-asus.patch
+Patch8: patch-8-gamma-display.patch
 %endif
 
 # empty final patch to facilitate testing of kernel patches
@@ -2084,6 +2085,7 @@ ApplyOptionalPatch patch-4-amdgpu-vrr-whitelist.patch
 ApplyOptionalPatch patch-5-cachy.patch
 ApplyOptionalPatch patch-6-bbr3.patch
 ApplyOptionalPatch patch-7-asus.patch
+ApplyOptionalPatch patch-8-gamma-display.patch
 %endif
 
 ApplyOptionalPatch linux-kernel-test.patch
