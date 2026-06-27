@@ -10,15 +10,15 @@
 | Backend | Status on gfx1103 | Notes |
 |---|---|---|
 | **Vulkan (RADV)** | Working, recommended | Sees full GTT pool; actively optimized |
-| **ROCm/HIP** | Broken for LLM inference | rocBLAS TensileLibrary missing gfx1103 in ROCm ≤6.3.2 → hard crash on matrix ops |
-| **ROCm 7.1** | "Enabled, not supported" | Recognized but FP16/Transformer inference still unreliable; worth retesting |
+| **ROCm/HIP** | Working (Fedora 44) | Fedora 44 rocBLAS 7.1 includes `Kernels.so-000-gfx1103.hsaco` — TensileLibrary crash fixed |
+| **ROCm Flash Attention** | Not available | rocWMMA rejects gfx1103 at compile time (static assertion). Must build with `GGML_HIP_ROCWMMA_FATTN=OFF` |
 | **CPU (BLAS)** | Fallback | Bandwidth-limited by DDR5; use when model doesn't fit GPU |
 
-**Why ROCm crashes:** `TensileLibrary.dat` contains pre-compiled GEMM kernels. gfx1103 is absent.
-Any call through rocBLAS fails with: `rocBLAS error: Cannot read TensileLibrary.dat: Illegal seek for GPU arch: gfx1103`.
+**ROCm on Fedora 44:** Install `rocm-hip rocblas hipblas rocm-device-libs rocm-comgr rocm-hip-devel rocblas-devel hipblas-devel` via rpm-ostree. Fedora 44's rocBLAS package includes `Kernels.so-000-gfx1103.hsaco` — the TensileLibrary crash is resolved without any workaround.
 
-**Workaround (experimental):** `HSA_OVERRIDE_GFX_VERSION=11.0.0` spoofs gfx1102 kernels. Unstable;
-GEMM tuning is wrong for the die. Not recommended for production inference.
+**Required env var:** `HSA_OVERRIDE_GFX_VERSION=11.0.3` — tells ROCm to use correct kernels for gfx1103.
+
+**rocWMMA exclusion:** rocWMMA supports gfx908/90a/940/941/942 (CDNA) and gfx1100/1101/1102 (discrete RDNA3) only. gfx1103 iGPU is explicitly rejected by a static assertion in config.hpp. Build llama.cpp HIP with `-DGGML_HIP_ROCWMMA_FATTN=OFF`.
 
 ---
 
@@ -160,7 +160,38 @@ After next reboot:
 
 ---
 
-## 9. Open Questions / Next Research
+## 9. Distributed Inference — RPC Split Across Two Machines
+
+For models that exceed a single machine's GTT pool, llama.cpp's RPC backend enables GPU layer distribution.
+
+**Setup (2026-06-27):**
+- **Local (CSE-GC-R-PW1):** 20 GB Vulkan pool — primary GPU, runs master process
+- **Remote (192.168.2.165):** ~10 GB Vulkan pool (post-reboot with gttsize=10240) — RPC backend
+- **Combined:** ~30 GB — fits Qwen3.6-35B-A3B-UD-Q4_K_M (23 GB) entirely on GPU
+
+**RPC server build:**
+```bash
+cmake -DGGML_VULKAN=ON -DGGML_RPC=ON -DCMAKE_BUILD_TYPE=Release -S . -B build
+cmake --build build --target rpc-server
+```
+
+**Run RPC server (on 192.168.2.165):**
+```bash
+RADV_PERFTEST=nogttspill ~/llama.cpp/build/bin/rpc-server -H 0.0.0.0 -p 50052
+```
+
+**Run inference (on local, with RPC):**
+```bash
+RADV_PERFTEST=nogttspill ~/llama.cpp/build/bin/llama-cli \
+  --rpc 192.168.2.165:50052 \
+  -ngl 999 -m ~/models/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf
+```
+
+**Note:** RPC transfers tensors over TCP — LAN bandwidth (GbE ~900 Mb/s) becomes a bottleneck for large models. 1 GbE vs the GPU's internal bandwidth ratio matters for layer-split inference throughput.
+
+---
+
+## 10. Open Questions / Next Research
 
 - Does ROCm 7.1 work reliably for Qwen3.6 35B inference on gfx1103 with `HSA_OVERRIDE_GFX_VERSION=11.0.0`?
 - Does the `ollama-rocm-gfx1103-ubuntu` approach (patching Fedora 43 Tensile kernels into rocBLAS)
